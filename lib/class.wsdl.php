@@ -1300,11 +1300,11 @@ class wsdl extends nusoap_base {
 		// if a soapval has been supplied, let its type override the WSDL
     	if (is_object($value) && get_class($value) == 'soapval') {
     		if ($value->type_ns) {
-    			$type = $value->type_ns . ':' . $value->type;
+    			$type      = $value->type_ns . ':' . $value->type;
 		    	$forceType = true;
 		    	$this->debug("in serializeType: soapval overrides type to $type");
     		} elseif ($value->type) {
-	    		$type = $value->type;
+	    		$type      = $value->type;
 		    	$forceType = true;
 		    	$this->debug("in serializeType: soapval overrides type to $type");
 	    	} else {
@@ -1330,7 +1330,7 @@ class wsdl extends nusoap_base {
 		$xml = '';
 		if (strpos($type, ':')) {
 			$uqType = substr($type, strrpos($type, ':') + 1);
-			$ns = substr($type, 0, strrpos($type, ':'));
+			$ns     = substr($type, 0, strrpos($type, ':'));
 			$this->debug("in serializeType: got a prefixed type: $uqType, $ns");
 			if ($this->getNamespaceFromPrefix($ns)) {
 				$ns = $this->getNamespaceFromPrefix($ns);
@@ -1341,7 +1341,9 @@ class wsdl extends nusoap_base {
 				$this->debug('in serializeType: type namespace indicates XML Schema or SOAP Encoding type');
 				if ($unqualified && $use == 'literal') {
 					$elementNS = " xmlns=\"\"";
+					$elementNS = '';
 				} else {
+					$elementNS = '';
 					$elementNS = '';
 				}
 				if (is_null($value)) {
@@ -1453,14 +1455,18 @@ class wsdl extends nusoap_base {
 				$elementName = $uqType;
 				if (isset($typeDef['form']) && ($typeDef['form'] == 'qualified')) {
 					$elementNS = " xmlns=\"$ns\"";
+					$elementNS = '';
 				} else {
 					$elementNS = " xmlns=\"\"";
+					$elementNS = '';
 				}
 			} else {
 				$elementName = $name;
 				if ($unqualified) {
 					$elementNS = " xmlns=\"\"";
+					$elementNS = '';
 				} else {
+					$elementNS = '';
 					$elementNS = '';
 				}
 			}
@@ -1509,10 +1515,13 @@ class wsdl extends nusoap_base {
 		} elseif ($phpType == 'array') {
 			if (isset($typeDef['form']) && ($typeDef['form'] == 'qualified')) {
 				$elementNS = " xmlns=\"$ns\"";
+				$elementNS = '';
 			} else {
 				if ($unqualified) {
 					$elementNS = " xmlns=\"\"";
+					$elementNS = '';
 				} else {
+					$elementNS = '';
 					$elementNS = '';
 				}
 			}
@@ -1577,10 +1586,13 @@ class wsdl extends nusoap_base {
 		} elseif ($phpType == 'scalar') {
 			if (isset($typeDef['form']) && ($typeDef['form'] == 'qualified')) {
 				$elementNS = " xmlns=\"$ns\"";
+				$elementNS = '';
 			} else {
 				if ($unqualified) {
 					$elementNS = " xmlns=\"\"";
+					$elementNS = '';
 				} else {
+					$elementNS = '';
 					$elementNS = '';
 				}
 			}
@@ -1594,6 +1606,7 @@ class wsdl extends nusoap_base {
 				$xml = "<$name$elementNS xsi:type=\"" . $this->getPrefixFromNamespace($ns) . ":$uqType\"$encodingStyle>$value</$name>";
 			}
 		}
+
 		$this->debug("in serializeType: returning: $xml");
 		return $xml;
 	}
