@@ -55,6 +55,8 @@ class wsdl extends nusoap_base {
 	var $authtype = '';				// Type of HTTP authentication
 	var $certRequest = array();		// Certificate for HTTP SSL authentication
 
+	var $cookies = array();
+
     /**
      * constructor
      * 
@@ -69,17 +71,20 @@ class wsdl extends nusoap_base {
 	 * @param boolean $use_curl try to use cURL
      * @access public 
      */
-    function wsdl($wsdl = '',$proxyhost=false,$proxyport=false,$proxyusername=false,$proxypassword=false,$timeout=0,$response_timeout=30,$curl_options=null,$use_curl=false){
+    function wsdl($wsdl = '',$proxyhost=false,$proxyport=false,$proxyusername=false,$proxypassword=false,$timeout=0,$response_timeout=30,$curl_options=null,$use_curl=false, $cookies = array()){
 		parent::nusoap_base();
 		$this->debug("ctor wsdl=$wsdl timeout=$timeout response_timeout=$response_timeout");
+		$this->cookies = $cookies;
+		$this->checkCookies();
         $this->proxyhost = $proxyhost;
         $this->proxyport = $proxyport;
 		$this->proxyusername = $proxyusername;
 		$this->proxypassword = $proxypassword;
 		$this->timeout = $timeout;
 		$this->response_timeout = $response_timeout;
-		if (is_array($curl_options))
+		if (is_array($curl_options)){
 			$this->curl_options = $curl_options;
+		}
 		$this->use_curl = $use_curl;
 		$this->fetchWSDL($wsdl);
     }
@@ -217,7 +222,7 @@ class wsdl extends nusoap_base {
 				$tr->setCredentials($this->username, $this->password, $this->authtype, array(), $this->certRequest);
 			}
 			$tr->setEncoding('gzip, deflate');
-			$wsdl_string = $tr->send('', $this->timeout, $this->response_timeout);
+			$wsdl_string = $tr->send('', $this->timeout, $this->response_timeout, $this->cookies);
 			//$this->debug("WSDL request\n" . $tr->outgoing_payload);
 			//$this->debug("WSDL response\n" . $tr->incoming_payload);
 			$this->appendDebug($tr->getDebug());
@@ -1946,6 +1951,129 @@ class wsdl extends nusoap_base {
         }
 		return true;
 	} 
+
+	/**
+	 * adds a new Cookie into $this->cookies array
+	 *
+	 * @param	string $name Cookie Name
+	 * @param	string $value Cookie Value
+	 * @return	boolean if cookie-set was successful returns true, else false
+	 * @access	public
+	 */
+	function setCookie($name, $value) {
+		if (strlen($name) == 0) {
+			return false;
+		}
+		$this->cookies[] = array('name' => $name, 'value' => $value);
+		return true;
+	}
+
+	/**
+	 * gets all Cookies
+	 *
+	 * @return   array with all internal cookies
+	 * @access   public
+	 */
+	function getCookies() {
+		return $this->cookies;
+	}
+
+	/**
+	 * checks all Cookies and delete those which are expired
+	 *
+	 * @return   boolean always return true
+	 * @access   private
+	 */
+	function checkCookies() {
+		if (sizeof($this->cookies) == 0) {
+			return true;
+		}
+		$this->debug('checkCookie: check ' . sizeof($this->cookies) . ' cookies');
+		$curr_cookies = $this->cookies;
+		$this->cookies = array();
+		foreach ($curr_cookies as $cookie) {
+			if (! is_array($cookie)) {
+				$this->debug('Remove cookie that is not an array');
+				continue;
+			}
+			if ((isset($cookie['expires'])) && (! empty($cookie['expires']))) {
+				if (strtotime($cookie['expires']) > time()) {
+					$this->cookies[] = $cookie;
+				} else {
+					$this->debug('Remove expired cookie ' . $cookie['name']);
+				}
+			} else {
+				$this->cookies[] = $cookie;
+			}
+		}
+		$this->debug('checkCookie: '.sizeof($this->cookies).' cookies left in array');
+		return true;
+	}
+
+	/**
+	 * updates the current cookies with a new set
+	 *
+	 * @param	array $cookies new cookies with which to update current ones
+	 * @return	boolean always return true
+	 * @access	private
+	 */
+	function UpdateCookies($cookies) {
+		if (sizeof($this->cookies) == 0) {
+			// no existing cookies: take whatever is new
+			if (sizeof($cookies) > 0) {
+				$this->debug('Setting new cookie(s)');
+				$this->cookies = $cookies;
+			}
+			return true;
+		}
+		if (sizeof($cookies) == 0) {
+			// no new cookies: keep what we've got
+			return true;
+		}
+		// merge
+		foreach ($cookies as $newCookie) {
+			if (!is_array($newCookie)) {
+				continue;
+			}
+			if ((!isset($newCookie['name'])) || (!isset($newCookie['value']))) {
+				continue;
+			}
+			$newName = $newCookie['name'];
+
+			$found = false;
+			for ($i = 0; $i < count($this->cookies); $i++) {
+				$cookie = $this->cookies[$i];
+				if (!is_array($cookie)) {
+					continue;
+				}
+				if (!isset($cookie['name'])) {
+					continue;
+				}
+				if ($newName != $cookie['name']) {
+					continue;
+				}
+				$newDomain = isset($newCookie['domain']) ? $newCookie['domain'] : 'NODOMAIN';
+				$domain = isset($cookie['domain']) ? $cookie['domain'] : 'NODOMAIN';
+				if ($newDomain != $domain) {
+					continue;
+				}
+				$newPath = isset($newCookie['path']) ? $newCookie['path'] : 'NOPATH';
+				$path = isset($cookie['path']) ? $cookie['path'] : 'NOPATH';
+				if ($newPath != $path) {
+					continue;
+				}
+				$this->cookies[$i] = $newCookie;
+				$found = true;
+				$this->debug('Update cookie ' . $newName . '=' . $newCookie['value']);
+				break;
+			}
+			if (! $found) {
+				$this->debug('Add cookie ' . $newName . '=' . $newCookie['value']);
+				$this->cookies[] = $newCookie;
+			}
+		}
+		return true;
+	}
 }
 
 ?>
